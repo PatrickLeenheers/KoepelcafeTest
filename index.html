@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard De Binnenplaats</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --focus: #2a78d6;
+    --context: #d6d5ce;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7;
+      --muted: #898781; --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+      --focus: #3987e5; --context: #4a4a46;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7;
+    --muted: #898781; --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.10);
+    --focus: #3987e5; --context: #4a4a46;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 960px; margin: 0 auto; padding: 32px 16px 48px; }
+  header h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 4px; }
+  header p { margin: 0; color: var(--ink-2); font-size: .95rem; }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 24px 0 32px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .kpi .label { font-size: .85rem; color: var(--ink-2); }
+  .kpi .value { font-size: 1.75rem; font-weight: 600; margin-top: 4px; letter-spacing: -0.01em; }
+  .kpi .sub { font-size: .8rem; color: var(--muted); margin-top: 2px; }
+
+  section.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+  .card h2 { font-size: 1.1rem; font-weight: 600; margin: 0 0 2px; }
+  .card .sub { color: var(--ink-2); font-size: .9rem; margin: 0 0 16px; }
+  .todo { margin: 16px 0 0; padding: 12px 14px; border-radius: 8px; background: var(--page); font-size: .95rem; }
+  .todo strong { font-weight: 600; }
+
+  /* Kolommen (weekdag) */
+  .cols { position: relative; height: 220px; display: grid; grid-template-columns: repeat(7, 1fr); align-items: end; border-bottom: 1px solid var(--axis); margin-top: 28px; padding-right: 28px; }
+  .cols .gl { position: absolute; left: 0; right: 0; border-top: 1px solid var(--grid); pointer-events: none; }
+  .cols .gl span { position: absolute; right: 0; top: -18px; font-size: .72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .col { position: relative; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; cursor: default; outline: none; }
+  .col .bar { width: 24px; max-width: 60%; border-radius: 4px 4px 0 0; }
+  .col .val { font-size: .78rem; color: var(--ink); margin-bottom: 4px; font-weight: 600; white-space: nowrap; }
+  .xlabels { display: grid; grid-template-columns: repeat(7, 1fr); font-size: .8rem; color: var(--ink-2); text-align: center; margin-top: 6px; padding-right: 28px; }
+
+  /* Gegroepeerde liggende balken */
+  .groups { display: grid; gap: 16px; border-left: 1px solid var(--axis); }
+  .group { outline: none; }
+  .group .glabel { font-size: .88rem; color: var(--ink-2); margin: 0 0 4px 8px; }
+  .group .track { position: relative; height: 18px; margin-bottom: 2px; padding-right: 72px; }
+  .group .bar { position: absolute; top: 0; height: 18px; }
+  .group .num { position: absolute; top: 0; font-size: .8rem; line-height: 18px; font-weight: 600; white-space: nowrap; color: var(--ink); }
+  .group:focus-visible .glabel { text-decoration: underline; }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .82rem; color: var(--ink-2); margin: 0 0 12px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+  details { margin-top: 12px; font-size: .88rem; color: var(--ink-2); }
+  summary { cursor: pointer; }
+  table { border-collapse: collapse; width: 100%; margin-top: 8px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--grid); }
+  th { font-weight: 600; color: var(--ink); }
+  td.n, th.n { text-align: right; }
+
+  #tip { position: fixed; z-index: 10; pointer-events: none; background: var(--ink); color: var(--surface); font-size: .82rem; line-height: 1.4; padding: 8px 10px; border-radius: 8px; max-width: 240px; opacity: 0; transition: opacity .1s; }
+  [data-tip]:hover .bar, [data-tip]:focus .bar { filter: brightness(1.1); }
+
+  footer { color: var(--muted); font-size: .8rem; margin-top: 24px; }
+
+  @media (max-width: 720px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .kpi .value { font-size: 1.4rem; }
+    .col .val { font-size: .7rem; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Café De Binnenplaats</h1>
+    <p>Jaaroverzicht 1 oktober 2025 – 30 september 2026 · omzet zonder fooi</p>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+
+  <section class="card" aria-labelledby="h1">
+    <h2 id="h1">Maandag en dinsdag zijn de rustigste dagen</h2>
+    <p class="sub">Gemiddelde omzet per open dag, incl. btw, afgerond</p>
+    <div class="cols" id="c1"></div>
+    <div class="xlabels" id="c1x"></div>
+    <details><summary>Bekijk als tabel</summary><div id="t1"></div></details>
+    <p class="todo"><strong>Wat te doen:</strong> kijk of de openingstijden op maandag en dinsdag passen bij de lagere drukte.</p>
+  </section>
+
+  <section class="card" aria-labelledby="h2">
+    <h2 id="h2">De happy hour verschuift de bierverkoop, maar levert geen extra omzet op</h2>
+    <p class="sub">Groei per open dag van okt–mrt (zonder happy hour) naar apr–sep (met happy hour op do en vr, 17–18 uur)</p>
+    <div class="legend"><span><i style="background:var(--focus)"></i>do en vr (met happy hour)</span><span><i style="background:var(--context)"></i>overige dagen (zonder)</span></div>
+    <div class="groups" id="c2"></div>
+    <details><summary>Bekijk als tabel</summary><div id="t2"></div></details>
+    <p class="todo"><strong>Wat te doen:</strong> evalueer de happy hour. Hij brengt gasten eerder binnen, maar over de hele borrel levert hij niet meer op dan op andere dagen.</p>
+  </section>
+
+  <section class="card" aria-labelledby="h3">
+    <h2 id="h3">Gasten die via QR bestellen, geven ongeveer evenveel uit</h2>
+    <p class="sub">Gemiddelde besteding per persoon, maart t/m september 2026 · ongeveer 20% van de bonnen gaat via QR</p>
+    <div class="legend"><span><i style="background:var(--focus)"></i>QR-bestelling</span><span><i style="background:var(--context)"></i>aan tafel</span></div>
+    <div class="groups" id="c3"></div>
+    <details><summary>Bekijk als tabel</summary><div id="t3"></div></details>
+    <p class="todo"><strong>Wat te doen:</strong> QR levert geen extra omzet op. Bepaal wat het wél moet opleveren, bijvoorbeeld kortere wachttijden, en meet dat apart.</p>
+  </section>
+
+  <footer>Bron: kassagegevens, productkaart en weergegevens. Bedragen zijn afgerond.</footer>
+</main>
+<div id="tip" role="tooltip"></div>
+
+<script>
+const DATA = {
+  kpi: { omzet: 1160000, bonnen: 35500, gem_bon: 32.6, open_dagen: 353 },
+  weekdag: [
+    { dag: "Maandag", kort: "ma", omzet: 1840, dagen: 43 },
+    { dag: "Dinsdag", kort: "di", omzet: 1880, dagen: 52 },
+    { dag: "Woensdag", kort: "wo", omzet: 3010, dagen: 52 },
+    { dag: "Donderdag", kort: "do", omzet: 3180, dagen: 50 },
+    { dag: "Vrijdag", kort: "vr", omzet: 4010, dagen: 52 },
+    { dag: "Zaterdag", kort: "za", omzet: 4950, dagen: 52 },
+    { dag: "Zondag", kort: "zo", omzet: 3820, dagen: 52 }
+  ],
+  // Groei in procenten. a = do/vr (happy hour), b = overige dagen.
+  happy: [
+    { label: "Biertjes 17–18 uur", a: 28, b: 9 },
+    { label: "Biertjes 18–19 uur", a: 1, b: 17 },
+    { label: "Omzet hele borrel (17–19 uur)", a: 20, b: 20 }
+  ],
+  // Besteding per persoon per dagdeel. a = QR, b = aan tafel.
+  qr: [
+    { label: "Ochtend", a: 8.52, b: 8.55 },
+    { label: "Lunch", a: 14.39, b: 14.62 },
+    { label: "Middag", a: 9.03, b: 8.74 },
+    { label: "Borrel", a: 14.13, b: 14.32 },
+    { label: "Diner", a: 18.33, b: 17.48 }
+  ]
+};
+
+const eur = (v, d = 0) => "€ " + v.toLocaleString("nl-NL", { minimumFractionDigits: d, maximumFractionDigits: d });
+const num = v => v.toLocaleString("nl-NL");
+const el = (tag, attrs = {}, html = "") => { const e = document.createElement(tag); for (const k in attrs) e.setAttribute(k, attrs[k]); e.innerHTML = html; return e; };
+
+// Kerncijfers
+const k = DATA.kpi;
+const kpis = [
+  ["Omzet", "€ " + (k.omzet / 1e6).toLocaleString("nl-NL", { maximumFractionDigits: 2 }) + " mln", "incl. btw, zonder fooi"],
+  ["Aantal bonnen", "± " + num(k.bonnen), "in een jaar"],
+  ["Gemiddelde bon", eur(k.gem_bon, 2), "incl. btw"],
+  ["Open dagen", num(k.open_dagen), "in een jaar"]
+];
+const kb = document.getElementById("kpis");
+kpis.forEach(([l, v, s]) => kb.append(el("div", { class: "kpi" }, `<div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div>`)));
+
+// Grafiek 1: kolommen per weekdag
+(() => {
+  const box = document.getElementById("c1"), xl = document.getElementById("c1x");
+  const max = 5000;
+  [1000, 2000, 3000, 4000, 5000].forEach(t => {
+    const g = el("div", { class: "gl" }, `<span>${t / 1000}K</span>`); g.style.bottom = (t / max * 100) + "%"; box.append(g);
+  });
+  const show = new Set(["ma", "di", "za"]);
+  DATA.weekdag.forEach(d => {
+    const focus = d.kort === "ma" || d.kort === "di";
+    const c = el("div", { class: "col", tabindex: "0", "data-tip": `<b>${d.dag}</b><br>Omzet per dag: ${eur(d.omzet)}<br>${d.dagen} open dagen` });
+    if (show.has(d.kort)) c.append(el("div", { class: "val", "data-full": eur(d.omzet), "data-short": "€ " + (d.omzet / 1000).toLocaleString("nl-NL", { maximumFractionDigits: d.kort === "za" ? 2 : 1 }) + "K" }, eur(d.omzet)));
+    const b = el("div", { class: "bar" }); b.style.height = (d.omzet / max * 100) + "%"; b.style.background = focus ? "var(--focus)" : "var(--context)";
+    c.append(b); box.append(c);
+    xl.append(el("div", {}, d.kort));
+  });
+  // Op smalle schermen korte bedragen boven de kolommen, zodat ze niet over elkaar lopen
+  const mq = matchMedia("(max-width: 520px)");
+  const fit = () => box.querySelectorAll(".val").forEach(v => v.textContent = mq.matches ? v.dataset.short : v.dataset.full);
+  fit(); mq.addEventListener("change", fit);
+  document.getElementById("t1").innerHTML = "<table><tr><th>Dag</th><th class=n>Omzet per dag</th><th class=n>Open dagen</th></tr>" +
+    DATA.weekdag.map(d => `<tr><td>${d.dag}</td><td class=n>${eur(d.omzet)}</td><td class=n>${d.dagen}</td></tr>`).join("") + "</table>";
+})();
+
+// Gegroepeerde liggende balken: per groep een label en twee balken (focus en vergelijking)
+function groupChart(boxId, groups, max, labelA, labelB) {
+  const box = document.getElementById(boxId);
+  groups.forEach(g => {
+    const wrap = el("div", { class: "group", tabindex: "0", "data-tip": g.tip });
+    wrap.append(el("div", { class: "glabel" }, g.label));
+    [["a", "var(--focus)", labelA], ["b", "var(--context)", labelB]].forEach(([key, color, name]) => {
+      const tr = el("div", { class: "track", "aria-label": `${name}: ${g.text[key]}` });
+      const w = Math.max(g[key], 0) / max * 100;
+      const b = el("div", { class: "bar" }); b.style.left = 0; b.style.width = w + "%"; b.style.background = color; b.style.borderRadius = "0 4px 4px 0";
+      const n = el("div", { class: "num" }, g.text[key]); n.style.left = `calc(${w}% + 6px)`;
+      tr.append(b, n); wrap.append(tr);
+    });
+    box.append(wrap);
+  });
+}
+
+// Grafiek 2: happy hour
+(() => {
+  const groups = DATA.happy.map(h => ({ label: h.label, a: h.a, b: h.b, text: { a: "+" + h.a + "%", b: "+" + h.b + "%" },
+    tip: `<b>${h.label}</b><br>do/vr: +${h.a}%<br>overige dagen: +${h.b}%` }));
+  groupChart("c2", groups, 35, "do en vr", "overige dagen");
+  document.getElementById("t2").innerHTML = "<table><tr><th>Groei per open dag</th><th class=n>do/vr</th><th class=n>overige dagen</th></tr>" +
+    DATA.happy.map(h => `<tr><td>${h.label}</td><td class=n>+${h.a}%</td><td class=n>+${h.b}%</td></tr>`).join("") + "</table>";
+})();
+
+// Grafiek 3: QR tegenover aan tafel
+(() => {
+  const groups = DATA.qr.map(q => ({ label: q.label, a: q.a, b: q.b, text: { a: eur(q.a, 2), b: eur(q.b, 2) },
+    tip: `<b>${q.label}</b><br>QR: ${eur(q.a, 2)} per persoon<br>Aan tafel: ${eur(q.b, 2)} per persoon` }));
+  groupChart("c3", groups, 24, "QR-bestelling", "aan tafel");
+  document.getElementById("t3").innerHTML = "<table><tr><th>Dagdeel</th><th class=n>QR</th><th class=n>Aan tafel</th></tr>" +
+    DATA.qr.map(q => `<tr><td>${q.label}</td><td class=n>${eur(q.a, 2)}</td><td class=n>${eur(q.b, 2)}</td></tr>`).join("") + "</table>";
+})();
+
+// Tooltip (muis, toetsenbord en aanraken)
+(() => {
+  const tip = document.getElementById("tip");
+  const place = (x, y) => {
+    const r = tip.getBoundingClientRect();
+    let left = x + 12, top = y + 12;
+    if (left + r.width > innerWidth - 8) left = x - r.width - 12;
+    if (top + r.height > innerHeight - 8) top = y - r.height - 12;
+    tip.style.left = Math.max(8, left) + "px"; tip.style.top = Math.max(8, top) + "px";
+  };
+  const show = (t, x, y) => { tip.innerHTML = t.dataset.tip; tip.style.opacity = 1; place(x, y); };
+  const hide = () => { tip.style.opacity = 0; };
+  document.querySelectorAll("[data-tip]").forEach(t => {
+    t.addEventListener("pointermove", e => show(t, e.clientX, e.clientY));
+    t.addEventListener("pointerleave", hide);
+    t.addEventListener("focus", () => { const r = t.getBoundingClientRect(); show(t, r.left + r.width / 2, r.top); });
+    t.addEventListener("blur", hide);
+  });
+  addEventListener("scroll", hide, { passive: true });
+})();
+</script>
+</body>
+</html>
